@@ -33,16 +33,17 @@ export function initiateGitHubOAuth(req, res) {
  */
 export async function handleGitHubCallback(req, res) {
   const { code, state, error, error_description } = req.query;
+  const clientBase = (config.clientUrl || 'http://localhost:5173').replace(/\/login\/?$/, '').replace(/\/+$/, '');
 
   if (error) {
     logger.error({ error, error_description }, 'GitHub OAuth error received');
-    return res.redirect(`${config.clientUrl}/login?error=${encodeURIComponent(error_description || error)}`);
+    return res.redirect(`${clientBase}/login?error=${encodeURIComponent(error_description || error)}`);
   }
 
   // Validate state
   if (!state || !oauthStates.has(state) || Date.now() > oauthStates.get(state)) {
     oauthStates.delete(state);
-    return res.redirect(`${config.clientUrl}/login?error=Invalid+or+expired+OAuth+state`);
+    return res.redirect(`${clientBase}/login?error=Invalid+or+expired+OAuth+state`);
   }
   oauthStates.delete(state);
 
@@ -89,10 +90,10 @@ export async function handleGitHubCallback(req, res) {
       maxAge: config.security.sessionDuration,
     });
 
-    res.redirect(`${config.clientUrl}/dashboard`);
+    res.redirect(`${clientBase}/dashboard`);
   } catch (err) {
     logger.error({ err: err.message }, 'OAuth callback handling failed');
-    res.redirect(`${config.clientUrl}/login?error=${encodeURIComponent(err.message)}`);
+    res.redirect(`${clientBase}/login?error=${encodeURIComponent(err.message)}`);
   }
 }
 
