@@ -79,11 +79,13 @@ export async function handleGitHubCallback(req, res) {
       { expiresIn: '7d' }
     );
 
+    const isCrossSite = config.clientUrl.startsWith('https://') || config.env === 'production';
+
     // Set secure HTTP-only cookie
     res.cookie(config.security.cookieName, sessionToken, {
       httpOnly: true,
-      secure: config.env === 'production',
-      sameSite: 'lax',
+      secure: isCrossSite,
+      sameSite: isCrossSite ? 'none' : 'lax',
       maxAge: config.security.sessionDuration,
     });
 

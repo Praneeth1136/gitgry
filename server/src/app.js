@@ -23,7 +23,20 @@ app.use(helmet({
 }));
 
 app.use(cors({
-  origin: config.clientUrl,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g. mobile, curl, extensions) or allowed domains
+    if (
+      !origin ||
+      origin === config.clientUrl ||
+      origin.endsWith('.vercel.app') ||
+      origin.includes('localhost') ||
+      origin.startsWith('chrome-extension://')
+    ) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Permissive for easy extension and preview deployment
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
