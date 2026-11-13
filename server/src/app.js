@@ -43,6 +43,16 @@ const limiter = rateLimit({
 });
 app.use('/api', limiter);
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    name: 'GitGry API',
+    status: 'online',
+    message: 'GitGry Automated Maintenance Server is running 24/7',
+    health: '/api/health',
+  });
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({

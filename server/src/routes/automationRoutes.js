@@ -16,7 +16,8 @@ import { config } from '../config/index.js';
 const router = express.Router();
 
 // Public webhook endpoint for external cloud cron runners (e.g. cron-job.org / GitHub Actions)
-router.post('/cron-trigger', async (req, res) => {
+// Supports both GET and POST, and both Header and Query param (?secret=...)
+router.all('/cron-trigger', async (req, res) => {
   const secret = req.headers['x-cron-secret'] || req.query.secret;
   if (!secret || secret !== config.security.cronSecret) {
     return res.status(401).json({ success: false, message: 'Invalid or missing CRON_SECRET' });
