@@ -1,0 +1,141 @@
+name: GitGry Repository Maintenance
+
+on:
+  workflow_dispatch:
+    inputs:
+      taskId:
+        description: 'Approved Maintenance Task ID'
+        required: true
+        type: string
+      executionId:
+        description: 'Execution Tracking ID'
+        required: true
+        type: string
+      targetRepo:
+        description: 'Target Repository (owner/name)'
+        required: true
+        type: string
+      targetBranch:
+        description: 'Target Branch'
+        required: true
+        default: 'main'
+        type: string
+      expectedSourceSha:
+        description: 'Expected Head Commit SHA for safety'
+        required: false
+        type: string
+      callbackUrl:
+        description: 'Backend API Callback URL for execution status updates'
+        required: false
+        type: string
+
+concurrency:
+  group: gitgry-maintenance-${{ inputs.targetRepo }}-${{ inputs.targetBranch }}
+  cancel-in-progress: false
+
+jobs:
+  execute-maintenance:
+    name: Validate and Apply Maintenance
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout Dispatcher & Tooling
+        uses: actions/checkout@v4
+        with:
+          path: automation-runner
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: 'automation-runner/package.json'
+
+      - name: Checkout Target Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.targetRepo }}
+          ref: ${{ inputs.targetBranch }}
+          token: ${{ secrets.CROSS_REPO_PAT || github.token }}
+          path: target-repo
+          fetch-depth: 10
+
+      - name: Validate Source Commit SHA
+        working-directory: target-repo
+        run: |
+          CURRENT_SHA=$(git rev-parse HEAD)
+          echo "Target repo head SHA: $CURRENT_SHA"
+          if [ -n "${{ inputs.expectedSourceSha }}" ] && [ "${{ inputs.expectedSourceSha }}" != "$CURRENT_SHA" ]; then
+            echo "::warning ::Source SHA changed from planned state (${{ inputs.expectedSourceSha }} vs $CURRENT_SHA). Verifying safe rebase/apply."
+          fi
+
+      - name: Fetch and Verify Approved Task Spec
+        id: task-spec
+        working-directory: automation-runner
+        env:
+          GITGRY_API_TOKEN: ${{ secrets.GITGRY_API_TOKEN }}
+          TASK_ID: ${{ inputs.taskId }}
+          CALLBACK_URL: ${{ inputs.callbackUrl }}
+        run: |
+          node automation/scripts/validate-task.js \
+            --taskId="${{ inputs.taskId }}" \
+            --executionId="${{ inputs.executionId }}" \
+            --repoPath="../target-repo"
+
+      - name: Execute Maintenance Changes
+        id: execute-changes
+        working-directory: automation-runner
+        run: |
+          node automation/scripts/execute-maintenance.js \
+            --taskId="${{ inputs.taskId }}" \
+            --repoPath="../target-repo"
+
+      - name: Verify Applied Changes and Safety
+        working-directory: automation-runner
+        run: |
+          node automation/scripts/verify-changes.js \
+            --taskId="${{ inputs.taskId }}" \
+            --repoPath="../target-repo"
+
+      - name: Commit and Push Changes
+        working-directory: target-repo
+        env:
+          GITHUB_TOKEN: ${{ secrets.CROSS_REPO_PAT || github.token }}
+        run: |
+          git config user.name "GitGry Maintenance Bot"
+          git config user.email "bot@gitgry.local"
+          
+          DIFF_STAT=$(git diff --stat)
+          if [ -z "$DIFF_STAT" ]; then
+            echo "No changes detected. Skipping commit to prevent empty commits."
+            exit 0
+          fi
+          
+          git add -A
+          git commit -m "chore(maintenance): automated task [${{ inputs.taskId }}] - code hygiene & maintenance [skip ci]"
+          git push origin ${{ inputs.targetBranch }}
+
+      - name: Report Execution Status
+        if: always()
+        working-directory: automation-runner
+        env:
+          STATUS: ${{ job.status }}
+          TASK_ID: ${{ inputs.taskId }}
+          EXECUTION_ID: ${{ inputs.executionId }}
+          CALLBACK_URL: ${{ inputs.callbackUrl }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        run: |
+          echo "Maintenance workflow finished with status: $STATUS"
+          # Send execution result notification if callback URL configured
+          if [ -n "$CALLBACK_URL" ]; then
+            curl -s -X POST "$CALLBACK_URL" \
+              -H "Content-Type: application/json" \
+              -d "{\"executionId\":\"$EXECUTION_ID\",\"taskId\":\"$TASK_ID\",\"status\":\"$STATUS\",\"runId\":\"$RUN_ID\",\"runUrl\":\"$RUN_URL\"}" || true
+          fi
+

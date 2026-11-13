@@ -1,0 +1,35 @@
+{
+  "name": "gitgry",
+  "version": "1.0.0",
+  "description": "GitGry - GitHub Activity Manager: Legitimate automated repository maintenance & analytics platform",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently -n \"server,client\" -c \"blue,green\" \"npm run dev:server\" \"npm run dev:client\"",
+    "clean:port": "powershell -Command \"Get-NetTCPConnection -LocalPort 5000 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }\"",
+    "dev:server": "npm --workspace=server run dev",
+    "dev:client": "npm --workspace=client run dev",
+    "build": "npm --workspace=client run build",
+    "test": "npm --workspace=server run test && npm --workspace=client run test",
+    "test:server": "npm --workspace=server run test",
+    "test:client": "npm --workspace=client run test",
+    "lint": "npm --workspace=server run lint && npm --workspace=client run lint"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "keywords": [
+    "github",
+    "maintenance",
+    "automation",
+    "mern",
+    "actions"
+  ],
+  "author": "GitGry Team",
+  "license": "MIT"
+}
+

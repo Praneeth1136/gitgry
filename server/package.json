@@ -1,0 +1,36 @@
+{
+  "name": "gitgry-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon --watch src src/server.js",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "lint": "eslint src/ --ext .js"
+  },
+  "dependencies": {
+    "axios": "^1.8.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.12.1",
+    "pino": "^9.6.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "eslint": "^9.21.0",
+    "mongodb-memory-server": "^10.1.4",
+    "nodemon": "^3.1.9",
+    "pino-pretty": "^13.0.0",
+    "supertest": "^7.0.0",
+    "vitest": "^3.0.7"
+  }
+}
+
