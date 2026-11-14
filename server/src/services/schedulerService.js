@@ -83,9 +83,6 @@ export async function checkAndRunSchedules(force = false) {
         }
         if (!force) lastExecutedMinutes.add(executionKey);
 
-        // Mark executed for today in DB
-        await Schedule.findByIdAndUpdate(schedule._id, { lastRunDate: date });
-
         logger.info(`[Scheduler] Triggering scheduled maintenance for user: ${schedule.userId} at ${time} (${schedule.timezone}) [Scheduled: ${schedule.executionTime}]${force ? ' [FORCE_TRIGGER]' : ''}`);
 
         // Fetch user and decrypted token
@@ -117,13 +114,21 @@ export async function checkAndRunSchedules(force = false) {
             completedAt: null,
           });
 
+          let executedCount = 0;
           for (const task of approvedTasks) {
             try {
               await executeApprovedTask(user._id, task._id, plainToken);
+              executedCount++;
               logger.info(`[Scheduler] Auto-executed task: ${task.title}`);
             } catch (execErr) {
               logger.error({ err: execErr.message }, `[Scheduler] Execution error on task ${task.title}`);
             }
+          }
+
+          if (executedCount > 0) {
+            // Mark executed for today in DB ONLY if tasks actually executed!
+            await Schedule.findByIdAndUpdate(schedule._id, { lastRunDate: date });
+            logger.info(`[Scheduler] Successfully executed ${executedCount} tasks. Marked schedule ${schedule._id} as completed for ${date}.`);
           }
         }
       }
