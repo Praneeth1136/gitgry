@@ -23,11 +23,15 @@ router.all('/cron-trigger', (req, res) => {
     return res.status(401).json({ success: false, message: 'Invalid or missing CRON_SECRET' });
   }
 
+  // If ?force=true is provided, execute immediately regardless of scheduled time.
+  // Otherwise, only execute if a schedule matches the current IST time.
+  const force = req.query.force === 'true' || req.body?.force === true;
+
   // 1. Respond IMMEDIATELY (<20ms) with 200 OK so cron-job.org succeeds without timing out
-  res.json({ success: true, message: 'Triggered successfully' });
+  res.json({ success: true, message: force ? 'Forced execution triggered' : 'Scheduled cron check triggered' });
 
   // 2. Execute maintenance asynchronously in background on the server
-  checkAndRunSchedules(true).catch(error => {
+  checkAndRunSchedules(force).catch(error => {
     logger.error({ err: error.message }, '[Scheduler] Error in triggered cron execution');
   });
 });
