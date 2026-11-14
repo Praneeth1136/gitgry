@@ -30,24 +30,34 @@ function getLocalTimeInfo(timezone) {
       timeZone: tz,
       weekday: 'short',
     });
+    const dateFormatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
 
-    const timeString = timeFormatter.format(now); // "09:00"
-    const weekday = dayFormatter.format(now); // "Mon", "Tue", etc.
+    const timeString = timeFormatter.format(now); // "12:45"
+    const weekday = dayFormatter.format(now); // "Sat"
+    const dateString = dateFormatter.format(now); // "2026-11-14"
     const dayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
     
     return {
       time: timeString,
       day: dayMap[weekday] ?? now.getDay(),
-      dateKey: `${now.toISOString().slice(0, 10)}_${timeString}`,
+      date: dateString,
+      dateKey: `${dateString}_${timeString}`,
     };
   } catch (err) {
     // Fallback to UTC
     const hours = String(now.getUTCHours()).padStart(2, '0');
     const mins = String(now.getUTCMinutes()).padStart(2, '0');
+    const dateStr = now.toISOString().slice(0, 10);
     return {
       time: `${hours}:${mins}`,
       day: now.getUTCDay(),
-      dateKey: `${now.toISOString().slice(0, 10)}_${hours}:${mins}`,
+      date: dateStr,
+      dateKey: `${dateStr}_${hours}:${mins}`,
     };
   }
 }
@@ -60,16 +70,23 @@ export async function checkAndRunSchedules(force = false) {
     let totalExecuted = 0;
 
     for (const schedule of schedules) {
-      const { time, day, dateKey } = getLocalTimeInfo(schedule.timezone);
+      const { time, day, date, dateKey } = getLocalTimeInfo(schedule.timezone);
       const executionKey = `${schedule._id}_${dateKey}`;
 
-      if (force || (schedule.executionTime === time && schedule.daysOfWeek?.includes(day))) {
+      const isDayActive = schedule.daysOfWeek?.includes(day);
+      // Schedule is due if force is requested, OR today is an active day, current time has reached or passed scheduled time, and it has not run yet today!
+      const isDueToday = isDayActive && time >= schedule.executionTime && schedule.lastRunDate !== date;
+
+      if (force || isDueToday) {
         if (!force && lastExecutedMinutes.has(executionKey)) {
           continue; // Already processed in this minute
         }
         if (!force) lastExecutedMinutes.add(executionKey);
 
-        logger.info(`[Scheduler] Triggering scheduled maintenance for user: ${schedule.userId} at ${time} (${schedule.timezone})${force ? ' [FORCE_TRIGGER]' : ''}`);
+        // Mark executed for today in DB
+        await Schedule.findByIdAndUpdate(schedule._id, { lastRunDate: date });
+
+        logger.info(`[Scheduler] Triggering scheduled maintenance for user: ${schedule.userId} at ${time} (${schedule.timezone}) [Scheduled: ${schedule.executionTime}]${force ? ' [FORCE_TRIGGER]' : ''}`);
 
         // Fetch user and decrypted token
         const user = await User.findById(schedule.userId).select('+accessTokenEncrypted');

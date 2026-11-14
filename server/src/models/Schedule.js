@@ -33,6 +33,10 @@ const scheduleSchema = new mongoose.Schema(
       type: [Number], // 0 = Sunday, 1 = Monday, etc.
       default: [1, 2, 3, 4, 5], // Weekdays default
     },
+    lastRunDate: {
+      type: String, // e.g. "2026-11-14", tracks last executed date in local timezone
+      default: null,
+    },
   },
   {
     timestamps: true,
