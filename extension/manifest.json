@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "GitGry - GitHub Activity Manager",
+  "version": "1.0.0",
+  "description": "Automated GitHub repository maintenance, hygiene and scheduled commit manager.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "GitGry Activity Manager",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://gitgry.onrender.com/*",
+    "https://api.github.com/*"
+  ]
+}
