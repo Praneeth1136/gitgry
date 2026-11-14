@@ -4,6 +4,8 @@ import {
   handleGitHubCallback,
   getCurrentUser,
   logout,
+  connectWithToken,
+  extensionSuccess,
 } from '../controllers/authController.js';
 import { requireAuth } from '../middleware/auth.js';
 
@@ -11,6 +13,8 @@ const router = express.Router();
 
 router.get('/github', initiateGitHubOAuth);
 router.get('/github/callback', handleGitHubCallback);
+router.get('/extension-success', extensionSuccess);
+router.post('/token', connectWithToken);
 router.get('/me', requireAuth, getCurrentUser);
 router.post('/logout', requireAuth, logout);
 

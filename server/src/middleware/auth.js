@@ -5,7 +5,9 @@ import { decryptToken } from '../utils/crypto.js';
 
 export async function requireAuth(req, res, next) {
   try {
-    const token = req.cookies[config.security.cookieName];
+    const authHeader = req.headers.authorization;
+    const bearerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const token = bearerToken || req.cookies[config.security.cookieName];
 
     if (!token) {
       return res.status(401).json({
